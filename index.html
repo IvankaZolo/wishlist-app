@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список бажань</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <header>
+        <h1>Список бажань</h1>
+    </header>
+
+    <main>
+        <section id="add-wish">
+            <h2>Додати бажання</h2>
+            <form action="#" method="post">
+                <div>
+                    <label for="item-name">Назва бажання:</label>
+                    <input type="text" id="item-name" name="itemName" required>
+                </div>
+                <div>
+                    <label for="item-price">Орієнтовна ціна (грн):</label>
+                    <input type="number" id="item-price" name="itemPrice" min="0" step="1" required>
+                </div>
+                <div>
+                    <label for="item-priority">Пріоритет:</label>
+                    <select id="item-priority" name="itemPriority">
+                        <option value="high">Високий</option>
+                        <option value="medium" selected>Середній</option>
+                        <option value="low">Низький</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="item-link">Посилання на товар (необов'язково):</label>
+                    <input type="url" id="item-link" name="itemLink">
+                </div>
+                <button type="submit">Додати до списку</button>
+            </form>
+        </section>
+
+        <section id="wishlist">
+            <h2>Мої бажання</h2>
+            
+            <article class="wish-item">
+                <h3>Набір Lego Harry Potter</h3>
+                <p><strong>Ціна:</strong> 3 500 грн</p>
+                <p><strong>Пріоритет:</strong> Високий</p>
+                <p><a href="https://example.com" target="_blank" rel="noopener noreferrer">Переглянути в магазині</a></p>
+            </article>
+
+            <article class="wish-item">
+                <h3>Книга з алгоритмів</h3>
+                <p><strong>Ціна:</strong> 600 грн</p>
+                <p><strong>Пріоритет:</strong> Середній</p>
+                <p><a href="https://example.com" target="_blank" rel="noopener noreferrer">Переглянути в магазині</a></p>
+            </article>
+        </section>
+    </main>
+
+    <aside id="summary">
+        <h2>Підсумок</h2>
+        <p>Загальна орієнтовна сума: <strong>4 100 грн</strong></p>
+        <p>Усього заплановано речей: <strong>2</strong></p>
+    </aside>
+
+    <footer>
+        <p>&copy; 2026 Студентка групи ІП-55 Шапкіна Іванна. Навчальний проєкт для курсу «ПВЗ».</p>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
