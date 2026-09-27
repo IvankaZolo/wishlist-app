@@ -5,18 +5,19 @@
 body {
     margin: 0;
     font-family: sans-serif;
-    background-color: #fdf5e6; 
+    background-color: #fdf5e6;
     color: #333;
 }
 
-main, aside, footer {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    margin-bottom: 10px;
 }
 
 header {
-    background-color: #ffb6c1; 
+    background-color: #ffb6c1;
     padding: 20px;
     text-align: center;
 }
@@ -25,12 +26,16 @@ header h1 {
     margin: 0;
 }
 
+main, aside, footer {
+    padding: 20px;
+}
+
 section {
     margin-bottom: 30px;
 }
 
 h2 {
-    color: #daa520; 
+    color: #daa520;
 }
 
 form div {
@@ -42,12 +47,17 @@ label {
     margin-bottom: 5px;
 }
 
+.cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px; 
+}
+
 .wish-item {
     background-color: #fff;
     padding: 14px;
     border: 1px solid #333;
     border-radius: 10px;
-    margin-bottom: 15px;
 }
 
 .wish-item h3 {
@@ -73,4 +83,40 @@ aside {
 .total-sum {
     font-size: 1.8rem;
     font-weight: bold;
+}
+
+@media (min-width: 600px) {
+    .cards {
+        grid-template-columns: repeat(2, 1fr); 
+    }
+}
+
+@media (min-width: 1024px) {
+    body {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        grid-template-areas:
+            "header header"
+            "main aside"
+            "footer footer";
+        align-items: start;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    header { grid-area: header; }
+    main { grid-area: main; }
+    footer { grid-area: footer; text-align: center; }
+
+    aside {
+        grid-area: aside;
+        border-top: none;
+        border-left: 2px dashed #daa520;
+        position: sticky;
+        top: 20px;
+    }
+
+    .cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
