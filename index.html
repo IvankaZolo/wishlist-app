@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Список бажань</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -36,27 +39,36 @@
                     <label for="item-link">Посилання на товар (необов'язково):</label>
                     <input type="url" id="item-link" name="itemLink">
                 </div>
-                <button type="submit">Додати до списку</button>
+                <button type="submit" class="btn-submit">Додати до списку</button>
             </form>
         </section>
 
         <section id="wishlist">
             <h2>Мої бажання</h2>
+            
             <div class="cards">
                 <article class="wish-item">
                     <img src="assets/img/lego.jpg" alt="Набір Lego Harry Potter">
-                    <h3>Набір Lego Harry Potter</h3>
-                    <p><strong>Ціна:</strong> 3 500 грн</p>
-                    <p><strong>Пріоритет:</strong> Високий</p>
-                    <p><a href="https://example.com" target="_blank" rel="noopener noreferrer">Переглянути в магазині</a></p>
+                    <div class="wish-item__content">
+                        <h3>Набір Lego Harry Potter</h3>
+                        <p class="wish-item__price"><span class="price-value">3 500 грн</span></p>
+                        <p class="wish-item__priority">
+                            <span class="badge badge--high">Високий пріоритет</span>
+                        </p>
+                        <p><a href="https://example.com" target="_blank" rel="noopener noreferrer">Переглянути в магазині</a></p>
+                    </div>
                 </article>
 
                 <article class="wish-item wish-item--purchased">
                     <img src="assets/img/book.jpg" alt="Книга з алгоритмів">
-                    <h3>Книга з алгоритмів</h3>
-                    <p><strong>Ціна:</strong> 600 грн</p>
-                    <p><strong>Пріоритет:</strong> Середній</p>
-                    <p><a href="https://example.com" target="_blank" rel="noopener noreferrer">Переглянути в магазині</a></p>
+                    <div class="wish-item__content">
+                        <h3>Книга з алгоритмів</h3>
+                        <p class="wish-item__price"><span class="price-value">600 грн</span></p>
+                        <p class="wish-item__priority">
+                            <span class="badge badge--medium">Середній пріоритет</span>
+                        </p>
+                        <p><a href="https://example.com" target="_blank" rel="noopener noreferrer">Переглянути в магазині</a></p>
+                    </div>
                 </article>
             </div>
         </section>
@@ -64,8 +76,11 @@
 
     <aside id="summary">
         <h2>Підсумок</h2>
-        <p>Загальна орієнтовна сума: <strong class="total-sum">4 100 грн</strong></p>
-        <p>Усього заплановано речей: <strong>2</strong></p>
+        <div class="summary-card">
+            <p class="summary-label">Загальна орієнтовна сума:</p>
+            <p class="total-sum">4 100 грн</p>
+            <p class="summary-count">Усього заплановано речей: <strong>2</strong></p>
+        </div>
     </aside>
 
     <footer>
