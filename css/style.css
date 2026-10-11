@@ -203,12 +203,13 @@ input:focus, select:focus {
 }
 
 .wish-item--purchased {
-    opacity: 0.65;
-    background-color: #fcfbf9;
+    background-color: #f7f4ee;
+    border-color: #ded6cb;
 }
 
 .wish-item--purchased h3,
 .wish-item--purchased .price-value {
+    color: #554b42;
     text-decoration: line-through;
 }
 
