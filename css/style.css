@@ -277,3 +277,7 @@ input:focus, select:focus {
         grid-template-columns: repeat(3, 1fr);
     }
 }
+
+.priority-high {
+    border-left: 4px solid #c73850;
+}

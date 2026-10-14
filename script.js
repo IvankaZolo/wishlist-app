@@ -1,7 +1,7 @@
-// Перевірка підключення файлу скрипта
+// Підтвердження підключення скрипта
 console.log('script.js підключено');
 
-// Оголошення тестових даних згідно з варіантом 7 (масив об'єктів бажань)
+// Масив об'єктів бажань
 const wishes = [
     { title: 'Набір Lego Harry Potter', price: 3500, priority: 'високий' },
     { title: 'Книга з алгоритмів', price: 600, priority: 'середній' },
@@ -9,41 +9,75 @@ const wishes = [
     { title: 'Чохол для планшета', price: 450, priority: 'низький' }
 ];
 
-// Функція для розрахунку загальної вартості циклом for та перевірки пріоритету умовою if
-function processWishlist(items) {
-    let totalSum = 0;
+// Вибір контейнера карток
+const listContainer = document.querySelector('#wishlist-cards');
 
-    console.log('\n- Огляд списку бажань -');
+// Програмне видалення статичних прикладів карток з HTML (демонстрація .remove())
+const staticCards = document.querySelectorAll('.wish-item');
+staticCards.forEach(card => card.remove());
 
-    for (let i = 0; i < items.length; i++) {
-        totalSum += items[i].price;
+// Функція динамічного створення та виведення карток у DOM
+function renderWishlist(items) {
+    // Очищення вмісту перед генерацією
+    listContainer.innerHTML = '';
 
-        // Класифікація бажань за пріоритетом
-        if (items[i].priority === 'високий') {
-            console.log(`⭐ [Високий пріоритет] ${items[i].title} — ${items[i].price} грн`);
-        } else {
-            console.log(`• [${items[i].priority}] ${items[i].title} — ${items[i].price} грн`);
+    items.forEach(wish => {
+        // Створення елемента article
+        const card = document.createElement('article');
+        card.classList.add('wish-item');
+
+        // Встановлення data-атрибута згідно з варіантом 7
+        card.dataset.priority = wish.priority;
+
+        // Додавання класу за умовою для високого пріоритету
+        if (wish.priority === 'високий') {
+            card.classList.add('priority-high');
         }
+
+        // Створення заголовка для назви бажання
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = wish.title;
+
+        // Створення абзацу для ціни
+        const priceEl = document.createElement('p');
+        priceEl.classList.add('wish-item__price');
+        
+        const priceValue = document.createElement('span');
+        priceValue.classList.add('price-value');
+        priceValue.textContent = `${wish.price} грн`;
+        priceEl.append(priceValue);
+
+        // Створення інформації про пріоритет
+        const priorityEl = document.createElement('p');
+        priorityEl.classList.add('wish-item__priority');
+        priorityEl.textContent = `Пріоритет: ${wish.priority}`;
+
+        // Додавання всіх дочірніх вузлів у картку
+        card.append(titleEl, priceEl, priorityEl);
+
+        // Додавання готової картки до контейнера сітки
+        listContainer.append(card);
+    });
+}
+
+// Функція оновлення підсумкового блоку
+function updateSummary(items) {
+    const totalPriceEl = document.querySelector('#total-price');
+    const totalCountEl = document.querySelector('#total-count');
+
+    let total = 0;
+    for (const item of items) {
+        total += item.price;
     }
 
-    console.log(`\nЗагальна сума всіх бажань у списку: ${totalSum} грн`);
-    return totalSum;
+    if (totalPriceEl) {
+        totalPriceEl.textContent = `${total} грн`;
+    }
+    if (totalCountEl) {
+        totalCountEl.textContent = items.length;
+    }
 }
 
-// Виклик функції обробки масиву
-processWishlist(wishes);
-
-// Стрілкова функція для перевірки відповідності бюджету
-const withinBudget = (price, budget) => price <= budget;
-
-// Тестування стрілкової функції з виведенням результатів у консоль
-console.log('\n- Перевірка бюджету (стрілкова функція) -');
-const myBudget = 3000;
-console.log(`Мій поточний бюджет: ${myBudget} грн`);
-
-for (const item of wishes) {
-    const isAffordable = withinBudget(item.price, myBudget);
-    console.log(
-        `Чи можу я купити "${item.title}" (${item.price} грн)? -> ${isAffordable ? 'Так, вкладається в бюджет' : 'Ні, перевищує бюджет'}`
-    );
-}
+// Виклик рендеру та оновлення підсумку
+renderWishlist(wishes);
+updateSummary(wishes);
