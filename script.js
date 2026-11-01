@@ -1,13 +1,11 @@
 // Підтвердження підключення скрипта
 console.log('script.js підключено');
 
+// Ендпоінт публічного API для Варіанта 7
+const API_URL = 'https://jsonplaceholder.typicode.com/todos?userId=2';
+
 // Масив об'єктів бажань
-const wishes = [
-    { title: 'Набір Lego Harry Potter', price: 3500, priority: 'високий' },
-    { title: 'Книга з алгоритмів', price: 600, priority: 'середній' },
-    { title: 'Бездротові навушники', price: 2400, priority: 'високий' },
-    { title: 'Чохол для планшета', price: 450, priority: 'низький' }
-];
+let wishes = [];
 
 // Вибір основних вузлів сторінки
 const listContainer = document.querySelector('#wishlist-cards');
@@ -15,12 +13,14 @@ const wishForm = document.querySelector('#wish-form');
 const priceInput = document.querySelector('#item-price');
 const nameInput = document.querySelector('#item-name');
 const prioritySelect = document.querySelector('#item-priority');
+const btnRefresh = document.querySelector('#btn-refresh');
+const statusMessage = document.querySelector('#status-message');
 
-// Програмне видалення статичних прикладів карток з HTML
+// Програмне видалення статичних прикладів карток з HTML (демонстрація .remove())
 const staticCards = document.querySelectorAll('.wish-item');
 staticCards.forEach(card => card.remove());
 
-// Функція динамічного створення карток
+// Функція динамічного створення карток у DOM
 function renderWishlist(items) {
     listContainer.innerHTML = '';
 
@@ -46,7 +46,7 @@ function renderWishlist(items) {
         priceValue.textContent = `${wish.price} грн`;
         priceEl.append(priceValue);
 
-        // Селектор пріоритету всередині картки для другої події
+        // Селектор пріоритету всередині картки
         const priorityContainer = document.createElement('p');
         priorityContainer.classList.add('wish-item__priority');
         priorityContainer.textContent = 'Пріоритет: ';
@@ -84,11 +84,64 @@ function updateSummary(items) {
     if (totalCountEl) totalCountEl.textContent = items.length;
 }
 
-// Первинний рендер списку
-renderWishlist(wishes);
-updateSummary(wishes);
+// Функції керування статусом завантаження та повідомленнями про помилки
+function showStatus(text, type = 'loading') {
+    statusMessage.textContent = text;
+    statusMessage.style.display = 'block';
+    statusMessage.className = `status-message status-message--${type}`;
+}
 
-// Додаткова валідація ціни "на льоту" через подію input
+function hideStatus() {
+    statusMessage.style.display = 'none';
+    statusMessage.textContent = '';
+}
+
+// Асинхронна функція завантаження даних із сервера (Fetch API)
+async function loadWishesFromAPI() {
+    showStatus('Завантаження списку бажань із сервера...', 'loading');
+    if (btnRefresh) btnRefresh.disabled = true;
+
+    try {
+        const response = await fetch(API_URL);
+
+        // Перевірка HTTP-статусу відповіді
+        if (!response.ok) {
+            throw new Error(`Сервер відповів зі статусом: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Дані успішно отримані з API:', data);
+
+        // Адаптація отриманих todos під структуру карток нашого варіанта
+        wishes = data.slice(0, 6).map((item, idx) => ({
+            title: item.title,
+            price: (item.id * 120) + 300, // розрахункова орієнтовна ціна
+            priority: item.completed ? 'низький' : (idx % 2 === 0 ? 'високий' : 'середній')
+        }));
+
+        // Приховуємо статус завантаження та рендеримо отримані картки
+        hideStatus();
+        renderWishlist(wishes);
+        updateSummary(wishes);
+
+    } catch (error) {
+        // Вимога варіанта: зрозуміле повідомлення про помилку мережі/офлайн
+        console.error('Помилка при завантаженні даних:', error);
+        showStatus('Список бажань недоступний офлайн', 'error');
+    } finally {
+        if (btnRefresh) btnRefresh.disabled = false;
+    }
+}
+
+// Початкове завантаження списку при відкритті сторінки
+loadWishesFromAPI();
+
+// Повторне завантаження за кліком на кнопку «Оновити з сервера»
+btnRefresh.addEventListener('click', () => {
+    loadWishesFromAPI();
+});
+
+// Додаткова валідація ціни на льоту через подію input
 priceInput.addEventListener('input', () => {
     const val = Number(priceInput.value);
     if (priceInput.value !== '' && val <= 0) {
@@ -98,56 +151,46 @@ priceInput.addEventListener('input', () => {
     }
 });
 
-// Обробка форми на подію submit (без перезавантаження сторінки)
+// Обробка додавання нового бажання через форму (submit)
 wishForm.addEventListener('submit', event => {
-    event.preventDefault(); // Запобігаємо стандартному перезавантаженню
+    event.preventDefault();
 
     const newTitle = nameInput.value.trim();
     const newPrice = Number(priceInput.value);
     const newPriority = prioritySelect.value;
 
-    if (!newTitle || newPrice <= 0) {
-        return;
-    }
+    if (!newTitle || newPrice <= 0) return;
 
-    // Створення нового об'єкта та додавання до масиву
     const newWish = {
         title: newTitle,
         price: newPrice,
         priority: newPriority
     };
-    wishes.push(newWish);
 
-    // Оновлення інтерфейсу сторінки
+    wishes.unshift(newWish); // додаємо нове бажання на початок списку
+
     renderWishlist(wishes);
     updateSummary(wishes);
-
-    // Очищення форми
     wishForm.reset();
 });
 
-// Друга подія варіанта: зміна пріоритету через делегування change на контейнері
+// Делегування події change на контейнері для зміни пріоритету
 listContainer.addEventListener('change', event => {
-    // Перевіряємо, чи подія сталася саме на нашому селекті всередині картки
     if (event.target.classList.contains('priority-inline-select')) {
         const select = event.target;
         const card = select.closest('.wish-item');
         const newPriority = select.value;
         const itemIndex = card.dataset.index;
 
-        // Оновлюємо дані в масиві
         if (itemIndex !== undefined && wishes[itemIndex]) {
             wishes[itemIndex].priority = newPriority;
         }
 
-        // Оновлюємо атрибут та клас елемента без повного перемальовування
         card.dataset.priority = newPriority;
         if (newPriority === 'високий') {
             card.classList.add('priority-high');
         } else {
             card.classList.remove('priority-high');
         }
-
-        console.log(`Пріоритет картки "${wishes[itemIndex].title}" змінено на: ${newPriority}`);
     }
 });

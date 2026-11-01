@@ -31,9 +31,9 @@
                 <div>
                     <label for="item-priority">Пріоритет:</label>
                     <select id="item-priority" name="itemPriority">
-                        <option value="high">Високий</option>
-                        <option value="medium" selected>Середній</option>
-                        <option value="low">Низький</option>
+                        <option value="високий">Високий</option>
+                        <option value="середній" selected>Середній</option>
+                        <option value="низький">Низький</option>
                     </select>
                 </div>
                 <div>
@@ -45,7 +45,12 @@
         </section>
 
         <section id="wishlist">
+          <div class="wishlist-header">
             <h2>Мої бажання</h2>
+            <button type="button" id="btn-refresh" class="btn-refresh">Оновити з сервера</button>
+            </div>
+
+            <div id="status-message" class="status-message" style="display: none;"></div>
             
             <div class="cards" id="wishlist-cards">
                 <article class="wish-item">
