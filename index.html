@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="script.js" defer></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 <body>
 
@@ -53,29 +54,17 @@
             <div id="status-message" class="status-message" style="display: none;"></div>
             
             <div class="cards" id="wishlist-cards">
-                <article class="wish-item">
-                    <img src="assets/img/lego.jpg" alt="Набір Lego Harry Potter">
-                    <div class="wish-item__content">
-                        <h3>Набір Lego Harry Potter</h3>
-                        <p class="wish-item__price"><span class="price-value">3 500 грн</span></p>
-                        <p class="wish-item__priority">
-                            <span class="badge badge--high">Високий пріоритет</span>
-                        </p>
-                        <p><a href="https://example.com" target="_blank" rel="noopener noreferrer">Переглянути в магазині</a></p>
-                    </div>
-                </article>
-
-                <article class="wish-item wish-item--purchased">
-                    <img src="assets/img/book.jpg" alt="Книга з алгоритмів">
-                    <div class="wish-item__content">
-                        <h3>Книга з алгоритмів</h3>
-                        <p class="wish-item__price"><span class="price-value">600 грн</span></p>
-                        <p class="wish-item__priority">
-                            <span class="badge badge--medium">Середній пріоритет</span>
-                        </p>
-                        <p><a href="https://example.com" target="_blank" rel="noopener noreferrer">Переглянути в магазині</a></p>
-                    </div>
-                </article>
+                   <!-- Декларативний рендер через компонент WishItem (v-for та :key) -->
+                  <wish-item 
+                  v-for="item in wishes" 
+                   :key="item.id" 
+                  :id="item.id"
+                  :name="item.title" 
+                  :price="item.price" 
+                  :priority="item.priority"
+                  :purchased="item.purchased"
+                   @toggle="togglePurchased">
+                 </wish-item>
             </div>
         </section>
     </main>

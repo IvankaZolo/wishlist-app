@@ -334,3 +334,30 @@ input:focus, select:focus {
     color: #9b1c1c;
     border: 1px solid #f8b4b4;
 }
+
+.wish-item--purchased {
+    opacity: 0.6;
+    background-color: #f5f5f5;
+    border-style: dashed;
+}
+
+.wish-item--purchased h3 {
+    text-decoration: line-through;
+    color: #888;
+}
+
+.wish-item__checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.wish-item__checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}

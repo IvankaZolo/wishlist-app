@@ -1,196 +1,124 @@
-// Підтвердження підключення скрипта
-console.log('script.js підключено');
+// Лабораторна робота №10: Клієнтське програмування з фреймворком Vue 3
+// Обґрунтування: обрано Vue 3 через декларативну модель, компонентний підхід та легку інтеграцію через CDN.
 
-// Ендпоінт публічного API для Варіанта 7
-const API_URL = 'https://jsonplaceholder.typicode.com/todos?userId=2';
+console.log('script.js підключено з Vue 3');
 
-// Масив об'єктів бажань
-let wishes = [];
+// 1. Окремий компонент WishItem (вимога Варіанта 7)
+// Props: name, price, priority (а також id та purchased)
+const WishItem = {
+    props: {
+        id: { type: Number, required: true },
+        name: { type: String, required: true },
+        price: { type: Number, required: true },
+        priority: { type: String, default: 'середній' },
+        purchased: { type: Boolean, default: false }
+    },
+    emits: ['toggle'],
+    template: `
+        <article 
+            class="wish-item" 
+            :class="{ 
+                'priority-high': priority === 'високий', 
+                'wish-item--purchased': purchased 
+            }"
+            :data-priority="priority"
+        >
+            <div class="wish-item__content">
+                <h3>{{ name }}</h3>
+                <p class="wish-item__price">
+                    <span class="price-value">{{ price }} грн</span>
+                </p>
+                <p class="wish-item__priority">
+                    Пріоритет: <strong>{{ priority }}</strong>
+                </p>
+                
+                <!-- Інтерактивна дія варіанта 7: чекбокс «придбано» -->
+                <label class="wish-item__checkbox-label">
+                    <input 
+                        type="checkbox" 
+                        :checked="purchased" 
+                        @change="$emit('toggle', id)"
+                    >
+                    <span>{{ purchased ? 'Придбано ✓' : 'Відзначити як придбане' }}</span>
+                </label>
+            </div>
+        </article>
+    `
+};
 
-// Вибір основних вузлів сторінки
-const listContainer = document.querySelector('#wishlist-cards');
-const wishForm = document.querySelector('#wish-form');
-const priceInput = document.querySelector('#item-price');
-const nameInput = document.querySelector('#item-name');
-const prioritySelect = document.querySelector('#item-priority');
-const btnRefresh = document.querySelector('#btn-refresh');
-const statusMessage = document.querySelector('#status-message');
+// 2. Створення Vue-додатка
+const { createApp } = Vue;
 
-// Програмне видалення статичних прикладів карток з HTML (демонстрація .remove())
-const staticCards = document.querySelectorAll('.wish-item');
-staticCards.forEach(card => card.remove());
+const app = createApp({
+    components: {
+        WishItem
+    },
+    data() {
+        return {
+            wishes: [
+                { id: 1, title: 'Набір Lego Harry Potter', price: 3500, priority: 'високий', purchased: false },
+                { id: 2, title: 'Книга з алгоритмів', price: 600, priority: 'середній', purchased: false },
+                { id: 3, title: 'Бездротові навушники', price: 2400, priority: 'високий', purchased: false },
+                { id: 4, title: 'Чохол для планшета', price: 450, priority: 'низький', purchased: false }
+            ]
+        };
+    },
+    methods: {
+        // Зміна стану придбання (Крок 6)
+        togglePurchased(id) {
+            const item = this.wishes.find(w => w.id === id);
+            if (item) {
+                item.purchased = !item.purchased;
+            }
+            this.updateSummary();
+        },
 
-// Функція динамічного створення карток у DOM
-function renderWishlist(items) {
-    listContainer.innerHTML = '';
+        // Розрахунок блоку «Підсумок»
+        updateSummary() {
+            const totalPriceEl = document.querySelector('#total-price');
+            const totalCountEl = document.querySelector('#total-count');
 
-    items.forEach((wish, index) => {
-        const card = document.createElement('article');
-        card.classList.add('wish-item');
-        card.dataset.priority = wish.priority;
-        card.dataset.index = index;
+            // Рахуємо речі, які ще заплановано (не відзначені як придбані)
+            const remaining = this.wishes.filter(w => !w.purchased);
+            const total = remaining.reduce((sum, w) => sum + w.price, 0);
 
-        // Початкова підсвітка високого пріоритету
-        if (wish.priority === 'високий') {
-            card.classList.add('priority-high');
+            if (totalPriceEl) totalPriceEl.textContent = `${total} грн`;
+            if (totalCountEl) totalCountEl.textContent = remaining.length;
         }
+    },
+    mounted() {
+        // Оновлюємо підсумок одразу при завантаженні сторінки
+        this.updateSummary();
+    }
+});
 
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = wish.title;
+// Монтуємо застосунок у контейнер списку
+const vm = app.mount('#wishlist-cards');
 
-        const priceEl = document.createElement('p');
-        priceEl.classList.add('wish-item__price');
-        
-        const priceValue = document.createElement('span');
-        priceValue.classList.add('price-value');
-        priceValue.textContent = `${wish.price} грн`;
-        priceEl.append(priceValue);
+// Додавання нових бажань через форму у реактивний стан Vue
+const wishForm = document.querySelector('#wish-form');
+if (wishForm) {
+    wishForm.addEventListener('submit', event => {
+        event.preventDefault();
+        const nameInput = document.querySelector('#item-name');
+        const priceInput = document.querySelector('#item-price');
+        const prioritySelect = document.querySelector('#item-priority');
 
-        // Селектор пріоритету всередині картки
-        const priorityContainer = document.createElement('p');
-        priorityContainer.classList.add('wish-item__priority');
-        priorityContainer.textContent = 'Пріоритет: ';
+        const title = nameInput.value.trim();
+        const price = Number(priceInput.value);
+        const priority = prioritySelect.value;
 
-        const inlineSelect = document.createElement('select');
-        inlineSelect.classList.add('priority-inline-select');
+        if (!title || price <= 0) return;
 
-        const priorities = ['високий', 'середній', 'низький'];
-        priorities.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p;
-            opt.textContent = p;
-            if (p === wish.priority) opt.selected = true;
-            inlineSelect.append(opt);
+        vm.wishes.push({
+            id: Date.now(),
+            title: title,
+            price: price,
+            priority: priority,
+            purchased: false
         });
 
-        priorityContainer.append(inlineSelect);
-
-        card.append(titleEl, priceEl, priorityContainer);
-        listContainer.append(card);
+        vm.updateSummary();
+        wishForm.reset();
     });
 }
-
-// Функція оновлення блоку підсумку
-function updateSummary(items) {
-    const totalPriceEl = document.querySelector('#total-price');
-    const totalCountEl = document.querySelector('#total-count');
-
-    let total = 0;
-    for (const item of items) {
-        total += item.price;
-    }
-
-    if (totalPriceEl) totalPriceEl.textContent = `${total} грн`;
-    if (totalCountEl) totalCountEl.textContent = items.length;
-}
-
-// Функції керування статусом завантаження та повідомленнями про помилки
-function showStatus(text, type = 'loading') {
-    statusMessage.textContent = text;
-    statusMessage.style.display = 'block';
-    statusMessage.className = `status-message status-message--${type}`;
-}
-
-function hideStatus() {
-    statusMessage.style.display = 'none';
-    statusMessage.textContent = '';
-}
-
-// Асинхронна функція завантаження даних із сервера (Fetch API)
-async function loadWishesFromAPI() {
-    showStatus('Завантаження списку бажань із сервера...', 'loading');
-    if (btnRefresh) btnRefresh.disabled = true;
-
-    try {
-        const response = await fetch(API_URL);
-
-        // Перевірка HTTP-статусу відповіді
-        if (!response.ok) {
-            throw new Error(`Сервер відповів зі статусом: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('Дані успішно отримані з API:', data);
-
-        // Адаптація отриманих todos під структуру карток нашого варіанта
-        wishes = data.slice(0, 6).map((item, idx) => ({
-            title: item.title,
-            price: (item.id * 120) + 300, // розрахункова орієнтовна ціна
-            priority: item.completed ? 'низький' : (idx % 2 === 0 ? 'високий' : 'середній')
-        }));
-
-        // Приховуємо статус завантаження та рендеримо отримані картки
-        hideStatus();
-        renderWishlist(wishes);
-        updateSummary(wishes);
-
-    } catch (error) {
-        // Вимога варіанта: зрозуміле повідомлення про помилку мережі/офлайн
-        console.error('Помилка при завантаженні даних:', error);
-        showStatus('Список бажань недоступний офлайн', 'error');
-    } finally {
-        if (btnRefresh) btnRefresh.disabled = false;
-    }
-}
-
-// Початкове завантаження списку при відкритті сторінки
-loadWishesFromAPI();
-
-// Повторне завантаження за кліком на кнопку «Оновити з сервера»
-btnRefresh.addEventListener('click', () => {
-    loadWishesFromAPI();
-});
-
-// Додаткова валідація ціни на льоту через подію input
-priceInput.addEventListener('input', () => {
-    const val = Number(priceInput.value);
-    if (priceInput.value !== '' && val <= 0) {
-        priceInput.setCustomValidity('Ціна має бути більшою за нуль');
-    } else {
-        priceInput.setCustomValidity('');
-    }
-});
-
-// Обробка додавання нового бажання через форму (submit)
-wishForm.addEventListener('submit', event => {
-    event.preventDefault();
-
-    const newTitle = nameInput.value.trim();
-    const newPrice = Number(priceInput.value);
-    const newPriority = prioritySelect.value;
-
-    if (!newTitle || newPrice <= 0) return;
-
-    const newWish = {
-        title: newTitle,
-        price: newPrice,
-        priority: newPriority
-    };
-
-    wishes.unshift(newWish); // додаємо нове бажання на початок списку
-
-    renderWishlist(wishes);
-    updateSummary(wishes);
-    wishForm.reset();
-});
-
-// Делегування події change на контейнері для зміни пріоритету
-listContainer.addEventListener('change', event => {
-    if (event.target.classList.contains('priority-inline-select')) {
-        const select = event.target;
-        const card = select.closest('.wish-item');
-        const newPriority = select.value;
-        const itemIndex = card.dataset.index;
-
-        if (itemIndex !== undefined && wishes[itemIndex]) {
-            wishes[itemIndex].priority = newPriority;
-        }
-
-        card.dataset.priority = newPriority;
-        if (newPriority === 'високий') {
-            card.classList.add('priority-high');
-        } else {
-            card.classList.remove('priority-high');
-        }
-    }
-});
