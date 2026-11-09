@@ -54,7 +54,6 @@
             <div id="status-message" class="status-message" style="display: none;"></div>
             
             <div class="cards" id="wishlist-cards">
-                   <!-- Декларативний рендер через компонент WishItem (v-for та :key) -->
                   <wish-item 
                   v-for="item in wishes" 
                    :key="item.id" 
@@ -63,7 +62,8 @@
                   :price="item.price" 
                   :priority="item.priority"
                   :purchased="item.purchased"
-                   @toggle="togglePurchased">
+                   @toggle="togglePurchased"
+                   @delete="deleteWish">
                  </wish-item>
             </div>
         </section>
