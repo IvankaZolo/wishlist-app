@@ -8,66 +8,159 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-    <script src="script.js" defer></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="script.js" defer></script>
 </head>
 <body>
 
     <header>
         <h1>Список бажань</h1>
+        <nav class="main-nav">
+            <a href="#/" data-link class="nav-link" data-route="/">Усі бажання</a>
+            <a href="#/purchased" data-link class="nav-link" data-route="/purchased">Придбані</a>
+        </nav>
     </header>
 
-    <main>
-        <section id="add-wish">
-            <h2>Додати бажання</h2>
-            <form id="wish-form" action="#" method="post">
-                <div>
-                    <label for="item-name">Назва бажання:</label>
-                    <input type="text" id="item-name" name="itemName" required>
-                </div>
-                <div>
-                    <label for="item-price">Орієнтовна ціна (грн):</label>
-                    <input type="number" id="item-price" name="itemPrice" min="0" step="1" required>
-                </div>
-                <div>
-                    <label for="item-priority">Пріоритет:</label>
-                    <select id="item-priority" name="itemPriority">
-                        <option value="високий">Високий</option>
-                        <option value="середній" selected>Середній</option>
-                        <option value="низький">Низький</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="item-link">Посилання на товар (необов'язково):</label>
-                    <input type="url" id="item-link" name="itemLink">
-                </div>
-                <button type="submit" class="btn-submit">Додати до списку</button>
-            </form>
-        </section>
+    <main id="app">
+        <!-- МАРШРУТ 1: Головна сторінка (/) -->
+        <template v-if="currentView === 'home'">
+            <section id="add-wish">
+                <h2>Додати бажання</h2>
+                <form id="wish-form" @submit.prevent="addNewWish">
+                    <div>
+                        <label for="item-name">Назва бажання:</label>
+                        <input type="text" id="item-name" v-model.trim="newWishForm.title" required>
+                    </div>
+                    <div>
+                        <label for="item-price">Орієнтовна ціна (грн):</label>
+                        <input type="number" id="item-price" v-model.number="newWishForm.price" min="1" step="1" required>
+                    </div>
+                    <div>
+                        <label for="item-priority">Пріоритет:</label>
+                        <select id="item-priority" v-model="newWishForm.priority">
+                            <option value="високий">Високий</option>
+                            <option value="середній">Середній</option>
+                            <option value="низький">Низький</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="item-link">Посилання на товар (необов'язково):</label>
+                        <input type="url" id="item-link" v-model.trim="newWishForm.url" placeholder="https://...">
+                    </div>
+                    <button type="submit" class="btn-submit">Додати до списку</button>
+                </form>
+            </section>
 
-        <section id="wishlist">
-          <div class="wishlist-header">
-            <h2>Мої бажання</h2>
-            <button type="button" id="btn-refresh" class="btn-refresh">Оновити з сервера</button>
-            </div>
+            <section id="wishlist">
+                <div class="wishlist-header">
+                    <h2>Мої бажання</h2>
+                </div>
+                <div id="status-message" class="status-message" style="display: none;"></div>
+                <div class="cards" id="wishlist-cards">
+                    <wish-item 
+                        v-for="item in wishesWithProgress" 
+                        :key="item.id" 
+                        :id="item.id"
+                        :name="item.title" 
+                        :price="item.price" 
+                        :priority="item.priority"
+                        :purchased="item.purchased"
+                        :progress="item.progressPercent"
+                        :saved="item.savedForItem"
+                        @toggle="togglePurchased"
+                        @delete="deleteWish">
+                    </wish-item>
+                </div>
+            </section>
+        </template>
 
-            <div id="status-message" class="status-message" style="display: none;"></div>
-            <div class="cards" id="wishlist-cards">
-               <wish-item 
-                v-for="item in wishesWithProgress" 
-               :key="item.id" 
-               :id="item.id"
-               :name="item.title" 
-               :price="item.price" 
-               :priority="item.priority"
-               :purchased="item.purchased"
-               :progress="item.progressPercent"
-               :saved="item.savedForItem"
-               @toggle="togglePurchased"
-               @delete="deleteWish">
-               </wish-item>
-            </div>
-        </section>
+        <!-- МАРШРУТ 2: Сторінка придбаних товарів (#/purchased) -->
+        <template v-else-if="currentView === 'purchased'">
+            <section id="wishlist">
+                <div class="wishlist-header">
+                    <h2>Придбані бажання ({{ purchasedWishes.length }})</h2>
+                    <a href="#/" data-link class="btn-back">← До всіх бажань</a>
+                </div>
+                <p v-if="purchasedWishes.length === 0" class="empty-state">
+                    Ви ще не позначили жодного товару як придбаний.
+                </p>
+                <div v-else class="cards" id="wishlist-cards">
+                    <wish-item 
+                        v-for="item in purchasedWishes" 
+                        :key="item.id" 
+                        :id="item.id"
+                        :name="item.title" 
+                        :price="item.price" 
+                        :priority="item.priority"
+                        :purchased="item.purchased"
+                        :progress="item.progressPercent"
+                        :saved="item.savedForItem"
+                        @toggle="togglePurchased"
+                        @delete="deleteWish">
+                    </wish-item>
+                </div>
+            </section>
+        </template>
+
+        <!-- МАРШРУТ 3: Сторінка деталей товару (#/wishes/:id) -->
+        <template v-else-if="currentView === 'detail'">
+            <section class="wish-detail" v-if="selectedWish">
+                <a href="#/" data-link class="btn-back">← Назад до списку</a>
+                <div class="wish-detail__card">
+                    <span class="wish-detail__badge">Пріоритет: {{ selectedWish.priority }}</span>
+                    <h2>{{ selectedWish.title }}</h2>
+                    <p class="wish-detail__price">{{ selectedWish.price }} грн</p>
+
+                    <p class="wish-detail__url">
+                        <strong>Посилання на товар:</strong>
+                        <a v-if="selectedWish.url" :href="selectedWish.url" target="_blank" rel="noopener">
+                            Перейти в магазин ↗
+                        </a>
+                        <span v-else>не вказано</span>
+                    </p>
+
+                    <div class="wish-progress">
+                        <div class="wish-progress__info">
+                            <span>Накопичено: {{ selectedWish.savedForItem }} / {{ selectedWish.price }} грн</span>
+                            <span>{{ selectedWish.purchased ? 'Куплено' : selectedWish.progressPercent + '%' }}</span>
+                        </div>
+                        <div class="wish-progress__track">
+                            <div 
+                                class="wish-progress__fill" 
+                                :class="{ 'wish-progress__fill--ready': selectedWish.progressPercent >= 100 }"
+                                :style="{ width: selectedWish.progressPercent + '%' }"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <div class="wish-detail__controls">
+                        <label class="wish-item__checkbox-label">
+                            <input 
+                                type="checkbox" 
+                                :checked="selectedWish.purchased" 
+                                @change="togglePurchased(selectedWish.id)"
+                            >
+                            <span>{{ selectedWish.purchased ? 'Придбано ✓' : 'Відзначити як придбане' }}</span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <section class="not-found" v-else>
+                <h2>Товар не знайдено</h2>
+                <p>Бажання з ID «{{ routeParams.id }}» не існує або було видалене.</p>
+                <a href="#/" data-link class="btn-back">Повернутися на головну</a>
+            </section>
+        </template>
+
+        <!-- МАРШРУТ 4: Сторінка 404 для невідомих шляхів -->
+        <template v-else>
+            <section class="not-found">
+                <h2>404 — Сторінку не знайдено</h2>
+                <p>Запитаний маршрут не існує в застосунку.</p>
+                <a href="#/" data-link class="btn-back">Повернутися на головну</a>
+            </section>
+        </template>
     </main>
 
     <aside id="summary">
@@ -78,21 +171,21 @@
             <p class="summary-count">Усього заплановано речей: <strong id="total-count">0</strong></p>
         </div>
         <div class="savings-box">
-    <label for="savings-input" class="savings-box__label">Мої накопичення (грн):</label>
-    <input 
-        type="number" 
-        id="savings-input" 
-        class="savings-box__input" 
-        min="0" 
-        step="100" 
-        placeholder="Введіть суму..."
-    >
-    <div class="savings-box__buttons">
-        <button type="button" class="btn-quick-save" data-add="500">+500 грн</button>
-        <button type="button" class="btn-quick-save" data-add="1000">+1000 грн</button>
-        <button type="button" class="btn-quick-save btn-quick-save--reset" data-reset="true">Скинути</button>
-    </div>
-</div>
+            <label for="savings-input" class="savings-box__label">Мої накопичення (грн):</label>
+            <input 
+                type="number" 
+                id="savings-input" 
+                class="savings-box__input" 
+                min="0" 
+                step="100" 
+                placeholder="Введіть суму..."
+            >
+            <div class="savings-box__buttons">
+                <button type="button" class="btn-quick-save" data-add="500">+500 грн</button>
+                <button type="button" class="btn-quick-save" data-add="1000">+1000 грн</button>
+                <button type="button" class="btn-quick-save btn-quick-save--reset" data-reset="true">Скинути</button>
+            </div>
+        </div>
     </aside>
 
     <footer>

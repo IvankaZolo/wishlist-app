@@ -1,16 +1,19 @@
-console.log('script.js підключено: ініціалізація сховищ та анімації прогресу');
+console.log('script.js підключено: ініціалізація SPA-роутера та сховищ');
 
+// ==========================================
+// 1. КОНСТАНТИ ТА РОБОТА З LOCALSTORAGE
+// ==========================================
 const STORAGE_KEY = 'wishlist_items';
 const MIGRATION_KEY = 'wishlist_migrated';
 const SAVINGS_KEY = 'wishlist_savings';
 
 const INITIAL_WISHES = [
-    { id: 1, title: 'Набір Lego Harry Potter', price: 3500, priority: 'високий', purchased: false },
-    { id: 2, title: 'Книга з алгоритмів', price: 600, priority: 'середній', purchased: false },
-    { id: 3, title: 'Бездротові навушники', price: 2400, priority: 'високий', purchased: false },
-    { id: 4, title: 'Чохол для планшета', price: 450, priority: 'низький', purchased: false },
-    { id: 5, title: 'Теплий плед', price: 950, priority: 'середній', purchased: false },
-    { id: 6, title: 'Механічна клавіатура', price: 2800, priority: 'високий', purchased: false }
+    { id: 1, title: 'Набір Lego Harry Potter', price: 3500, priority: 'високий', url: 'https://www.lego.com', purchased: false },
+    { id: 2, title: 'Книга з алгоритмів', price: 600, priority: 'середній', url: '', purchased: false },
+    { id: 3, title: 'Бездротові навушники', price: 2400, priority: 'високий', url: '', purchased: false },
+    { id: 4, title: 'Чохол для планшета', price: 450, priority: 'низький', url: '', purchased: false },
+    { id: 5, title: 'Теплий плед', price: 950, priority: 'середній', url: '', purchased: false },
+    { id: 6, title: 'Механічна клавіатура', price: 2800, priority: 'високий', url: '', purchased: false }
 ];
 
 function saveToLocalStorage(items) {
@@ -31,6 +34,9 @@ function loadFromLocalStorage() {
     }
 }
 
+// ==========================================
+// 2. АСИНХРОННА БАЗА ДАНИХ INDEXEDDB
+// ==========================================
 const DB_NAME = 'WishlistDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'wishes';
@@ -107,6 +113,9 @@ async function runMigrationIfNeeded() {
     }
 }
 
+// ==========================================
+// 3. VUE-КОМПОНЕНТ КАРТКИ БАЖАННЯ
+// ==========================================
 const WishItem = {
     props: {
         id: { type: Number, required: true },
@@ -128,7 +137,12 @@ const WishItem = {
             :data-priority="priority"
         >
             <div class="wish-item__content">
-                <h3>{{ name }}</h3>
+                <!-- Клік по назві веде на сторінку деталей #/wishes/:id -->
+                <h3>
+                    <a :href="'#/wishes/' + id" data-link class="wish-item__title-link">
+                        {{ name }}
+                    </a>
+                </h3>
                 <p class="wish-item__price">
                     <span class="price-value">{{ price }} грн</span>
                 </p>
@@ -136,7 +150,6 @@ const WishItem = {
                     Пріоритет: <strong>{{ priority }}</strong>
                 </p>
 
-                <!-- Прогрес-бар «Накопичено на купівлю» з плавним CSS transition -->
                 <div class="wish-progress">
                     <div class="wish-progress__info">
                         <span>Накопичено: {{ saved }} / {{ price }} грн</span>
@@ -186,11 +199,18 @@ const app = createApp({
     data() {
         return {
             wishes: [],
-            savings: Number(localStorage.getItem(SAVINGS_KEY)) || 0
+            savings: Number(localStorage.getItem(SAVINGS_KEY)) || 0,
+            currentView: 'home',
+            routeParams: {},
+            newWishForm: {
+                title: '',
+                price: '',
+                priority: 'середній',
+                url: ''
+            }
         };
     },
     computed: {
-        // Співвідношення накопиченої суми до ціни кожного товару
         wishesWithProgress() {
             const currentSavings = Math.max(0, Number(this.savings) || 0);
 
@@ -214,6 +234,15 @@ const app = createApp({
                     progressPercent: percent
                 };
             });
+        },
+        // Дані для маршруту #/purchased
+        purchasedWishes() {
+            return this.wishesWithProgress.filter(item => item.purchased);
+        },
+        // Пошук конкретного бажання для маршруту #/wishes/:id
+        selectedWish() {
+            const targetId = Number(this.routeParams.id);
+            return this.wishesWithProgress.find(item => item.id === targetId) || null;
         }
     },
     methods: {
@@ -221,6 +250,31 @@ const app = createApp({
             const cleanValue = Math.max(0, Number(newAmount) || 0);
             this.savings = cleanValue;
             localStorage.setItem(SAVINGS_KEY, String(cleanValue));
+        },
+
+        async addNewWish() {
+            const title = this.newWishForm.title;
+            const price = Number(this.newWishForm.price);
+            if (!title || price <= 0) return;
+
+            const newWish = {
+                id: Date.now(),
+                title: title,
+                price: price,
+                priority: this.newWishForm.priority,
+                url: this.newWishForm.url || '',
+                purchased: false
+            };
+
+            try {
+                await putWishToDB(newWish);
+                this.wishes.unshift(newWish);
+                saveToLocalStorage(this.wishes);
+                this.updateSummary();
+                this.newWishForm = { title: '', price: '', priority: 'середній', url: '' };
+            } catch (err) {
+                console.error('Помилка додавання запису в IndexedDB:', err);
+            }
         },
 
         async togglePurchased(id) {
@@ -276,14 +330,103 @@ const app = createApp({
     }
 });
 
-const vm = app.mount('#wishlist-cards');
+// Монтуємо Vue в єдиний контейнер сторінки <main id="app"> (Крок 2)
+const vm = app.mount('#app');
 
+// ==========================================
+// 4. КЛІЄНТСЬКИЙ HASH-РОУТЕР (Кроки 3-9)
+// ==========================================
+
+// Крок 5: View-функції для кожного маршруту варіанта 7
+function renderHome() {
+    vm.currentView = 'home';
+    vm.routeParams = {};
+}
+
+function renderWishDetail(params) {
+    vm.currentView = 'detail';
+    vm.routeParams = params;
+}
+
+function renderPurchased() {
+    vm.currentView = 'purchased';
+    vm.routeParams = {};
+}
+
+function renderNotFound() {
+    vm.currentView = 'not-found';
+    vm.routeParams = {};
+}
+
+// Крок 3: Таблиця маршрутів для варіанта 7 (/, /wishes/:id, /purchased)
+const routes = [
+    { path: '/', view: renderHome },
+    { path: '/wishes/:id', view: renderWishDetail },
+    { path: '/purchased', view: renderPurchased }
+];
+
+// Крок 4: Зіставлення шляху з патерном та витягування параметра :id
+function matchRoute(path) {
+    const pathParts = path.split('/').filter(Boolean);
+
+    for (const route of routes) {
+        const routeParts = route.path.split('/').filter(Boolean);
+        if (routeParts.length !== pathParts.length) continue;
+
+        const params = {};
+        const isMatch = routeParts.every((part, i) => {
+            if (part.startsWith(':')) {
+                params[part.slice(1)] = pathParts[i];
+                return true;
+            }
+            return part === pathParts[i];
+        });
+
+        if (isMatch) {
+            return { view: route.view, params };
+        }
+    }
+
+    return null; // маршрут не знайдено — повертаємо null для сторінки 404
+}
+
+// Крок 7: Обробка зміни хеша та підсвічування активного пункту меню
+function handleRouteChange() {
+    const path = location.hash.slice(1) || '/';
+    const matched = matchRoute(path);
+
+    if (matched) {
+        matched.view(matched.params);
+    } else {
+        renderNotFound();
+    }
+
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.toggle('nav-link--active', link.dataset.route === path);
+    });
+}
+
+// Крок 6: Перехоплення кліків за внутрішніми посиланнями [data-link]
+document.addEventListener('click', event => {
+    const link = event.target.closest('a[data-link]');
+    if (!link) return;
+
+    event.preventDefault();
+    const href = link.getAttribute('href');
+    location.hash = href.startsWith('#') ? href : '#' + href;
+});
+
+window.addEventListener('hashchange', handleRouteChange);
+handleRouteChange(); // ініціалізація маршруту при першому відкритті
+
+// ==========================================
+// 5. КЕРУВАННЯ НАКОПИЧЕННЯМИ В САЙДБАРІ
+// ==========================================
 const savingsInput = document.querySelector('#savings-input');
 const quickSaveButtons = document.querySelectorAll('.btn-quick-save');
 
 if (savingsInput) {
     savingsInput.value = vm.savings > 0 ? vm.savings : '';
-
     savingsInput.addEventListener('input', event => {
         vm.setSavings(event.target.value);
     });
@@ -302,37 +445,3 @@ quickSaveButtons.forEach(btn => {
         }
     });
 });
-
-const wishForm = document.querySelector('#wish-form');
-if (wishForm) {
-    wishForm.addEventListener('submit', async event => {
-        event.preventDefault();
-        const nameInput = document.querySelector('#item-name');
-        const priceInput = document.querySelector('#item-price');
-        const prioritySelect = document.querySelector('#item-priority');
-
-        const title = nameInput.value.trim();
-        const price = Number(priceInput.value);
-        const priority = prioritySelect.value;
-
-        if (!title || price <= 0) return;
-
-        const newWish = {
-            id: Date.now(),
-            title: title,
-            price: price,
-            priority: priority,
-            purchased: false
-        };
-
-        try {
-            await putWishToDB(newWish);
-            vm.wishes.unshift(newWish);
-            saveToLocalStorage(vm.wishes);
-            vm.updateSummary();
-            wishForm.reset();
-        } catch (err) {
-            console.error('Помилка додавання запису в IndexedDB:', err);
-        }
-    });
-}
