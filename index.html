@@ -52,19 +52,20 @@
             </div>
 
             <div id="status-message" class="status-message" style="display: none;"></div>
-            
             <div class="cards" id="wishlist-cards">
-                  <wish-item 
-                  v-for="item in wishes" 
-                   :key="item.id" 
-                  :id="item.id"
-                  :name="item.title" 
-                  :price="item.price" 
-                  :priority="item.priority"
-                  :purchased="item.purchased"
-                   @toggle="togglePurchased"
-                   @delete="deleteWish">
-                 </wish-item>
+               <wish-item 
+                v-for="item in wishesWithProgress" 
+               :key="item.id" 
+               :id="item.id"
+               :name="item.title" 
+               :price="item.price" 
+               :priority="item.priority"
+               :purchased="item.purchased"
+               :progress="item.progressPercent"
+               :saved="item.savedForItem"
+               @toggle="togglePurchased"
+               @delete="deleteWish">
+               </wish-item>
             </div>
         </section>
     </main>
@@ -76,6 +77,22 @@
             <p class="total-sum" id="total-price">0 грн</p>
             <p class="summary-count">Усього заплановано речей: <strong id="total-count">0</strong></p>
         </div>
+        <div class="savings-box">
+    <label for="savings-input" class="savings-box__label">Мої накопичення (грн):</label>
+    <input 
+        type="number" 
+        id="savings-input" 
+        class="savings-box__input" 
+        min="0" 
+        step="100" 
+        placeholder="Введіть суму..."
+    >
+    <div class="savings-box__buttons">
+        <button type="button" class="btn-quick-save" data-add="500">+500 грн</button>
+        <button type="button" class="btn-quick-save" data-add="1000">+1000 грн</button>
+        <button type="button" class="btn-quick-save btn-quick-save--reset" data-reset="true">Скинути</button>
+    </div>
+</div>
     </aside>
 
     <footer>

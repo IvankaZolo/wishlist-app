@@ -1,10 +1,8 @@
-// Варіант 7: Список бажань (wishlist). Сховище: "wishes", keyPath: "id"
+console.log('script.js підключено: ініціалізація сховищ та анімації прогресу');
 
-console.log('script.js підключено: ініціалізація сховищ даних');
-
-// (Кроки 1-3)
 const STORAGE_KEY = 'wishlist_items';
 const MIGRATION_KEY = 'wishlist_migrated';
+const SAVINGS_KEY = 'wishlist_savings';
 
 const INITIAL_WISHES = [
     { id: 1, title: 'Набір Lego Harry Potter', price: 3500, priority: 'високий', purchased: false },
@@ -15,7 +13,6 @@ const INITIAL_WISHES = [
     { id: 6, title: 'Механічна клавіатура', price: 2800, priority: 'високий', purchased: false }
 ];
 
-// Крок 2. Читання та запис у localStorage з безпечною обробкою JSON у try/catch
 function saveToLocalStorage(items) {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -34,12 +31,10 @@ function loadFromLocalStorage() {
     }
 }
 
-// АСИНХРОННА БАЗА ДАНИХ INDEXEDDB (Кроки 5-7)
 const DB_NAME = 'WishlistDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'wishes';
 
-// Крок 6. Відкриття IndexedDB з обробником onupgradeneeded
 function openDB() {
     return new Promise((resolve, reject) => {
         if (!window.indexedDB) {
@@ -51,9 +46,7 @@ function openDB() {
         request.onupgradeneeded = event => {
             const db = event.target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
-                // Крок 5: створення сховища "wishes" із первинним ключем "id"
                 db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                console.log(`Object store "${STORE_NAME}" успішно створено`);
             }
         };
 
@@ -62,7 +55,6 @@ function openDB() {
     });
 }
 
-// Крок 7. CRUD-операції в IndexedDB через транзакції
 async function getAllWishesFromDB() {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -77,7 +69,6 @@ async function getAllWishesFromDB() {
 async function putWishToDB(item) {
     const db = await openDB();
     const plainItem = JSON.parse(JSON.stringify(item));
-    
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
@@ -92,17 +83,14 @@ async function deleteWishFromDB(id) {
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
-        store.delete(id); // видалення за первинним ключем
+        store.delete(id);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
     });
 }
 
-// Крок 8. Одноразова міграція даних із localStorage в IndexedDB
 async function runMigrationIfNeeded() {
     let localData = loadFromLocalStorage();
-    
-    // Якщо localStorage ще чистий — заповнюємо його початковими даними для демонстрації Кроку 4
     if (!localData || localData.length === 0) {
         saveToLocalStorage(INITIAL_WISHES);
         localData = INITIAL_WISHES;
@@ -111,25 +99,23 @@ async function runMigrationIfNeeded() {
     const isMigrated = localStorage.getItem(MIGRATION_KEY);
     const dbItems = await getAllWishesFromDB();
 
-    // Якщо сховище IndexedDB порожнє та міграція ще не виконувалась
     if (!isMigrated || dbItems.length === 0) {
-        console.log('Виконується одноразова міграція з localStorage в IndexedDB...');
         for (const item of localData) {
             await putWishToDB(item);
         }
         localStorage.setItem(MIGRATION_KEY, 'true');
-        console.log('Міграцію успішно завершено!');
     }
 }
 
-// 3. VUE-КОМПОНЕНТ ТА ІНТЕРФЕЙС (Кроки 4, 9, 11)
 const WishItem = {
     props: {
         id: { type: Number, required: true },
         name: { type: String, required: true },
         price: { type: Number, required: true },
         priority: { type: String, default: 'середній' },
-        purchased: { type: Boolean, default: false }
+        purchased: { type: Boolean, default: false },
+        progress: { type: Number, default: 0 },
+        saved: { type: Number, default: 0 }
     },
     emits: ['toggle', 'delete'],
     template: `
@@ -149,9 +135,25 @@ const WishItem = {
                 <p class="wish-item__priority">
                     Пріоритет: <strong>{{ priority }}</strong>
                 </p>
+
+                <!-- Прогрес-бар «Накопичено на купівлю» з плавним CSS transition -->
+                <div class="wish-progress">
+                    <div class="wish-progress__info">
+                        <span>Накопичено: {{ saved }} / {{ price }} грн</span>
+                        <span :class="{ 'wish-progress__badge--ready': progress >= 100 && !purchased }">
+                            {{ purchased ? 'Куплено' : (progress >= 100 ? 'Вистачає! ✓' : progress + '%') }}
+                        </span>
+                    </div>
+                    <div class="wish-progress__track">
+                        <div 
+                            class="wish-progress__fill" 
+                            :class="{ 'wish-progress__fill--ready': progress >= 100 }"
+                            :style="{ width: progress + '%' }"
+                        ></div>
+                    </div>
+                </div>
                 
                 <div class="wish-item__actions">
-                    <!-- Чекбокс оновлення статусу (put) -->
                     <label class="wish-item__checkbox-label">
                         <input 
                             type="checkbox" 
@@ -161,7 +163,6 @@ const WishItem = {
                         <span>{{ purchased ? 'Придбано ✓' : 'Відзначити як придбане' }}</span>
                     </label>
 
-                    <!-- Кнопка видалення картки (delete) -->
                     <button 
                         type="button" 
                         class="wish-item__delete-btn" 
@@ -184,18 +185,51 @@ const app = createApp({
     },
     data() {
         return {
-            wishes: []
+            wishes: [],
+            savings: Number(localStorage.getItem(SAVINGS_KEY)) || 0
         };
     },
+    computed: {
+        // Співвідношення накопиченої суми до ціни кожного товару
+        wishesWithProgress() {
+            const currentSavings = Math.max(0, Number(this.savings) || 0);
+
+            return this.wishes.map(item => {
+                if (item.purchased) {
+                    return {
+                        ...item,
+                        savedForItem: item.price,
+                        progressPercent: 100
+                    };
+                }
+
+                const savedForItem = Math.min(currentSavings, item.price);
+                const percent = item.price > 0
+                    ? Math.min(100, Math.round((currentSavings / item.price) * 100))
+                    : 0;
+
+                return {
+                    ...item,
+                    savedForItem,
+                    progressPercent: percent
+                };
+            });
+        }
+    },
     methods: {
-        // Оновлення статусу в IndexedDB (put)
+        setSavings(newAmount) {
+            const cleanValue = Math.max(0, Number(newAmount) || 0);
+            this.savings = cleanValue;
+            localStorage.setItem(SAVINGS_KEY, String(cleanValue));
+        },
+
         async togglePurchased(id) {
             const item = this.wishes.find(w => w.id === id);
             if (item) {
                 item.purchased = !item.purchased;
                 try {
                     await putWishToDB(item);
-                    saveToLocalStorage(this.wishes); // дублюємо для синхронізації
+                    saveToLocalStorage(this.wishes);
                 } catch (err) {
                     console.error('Помилка оновлення статусу в IndexedDB:', err);
                 }
@@ -203,20 +237,17 @@ const app = createApp({
             this.updateSummary();
         },
 
-        // Видалення товару зі списку та бази (delete)
         async deleteWish(id) {
             try {
                 await deleteWishFromDB(id);
                 this.wishes = this.wishes.filter(w => w.id !== id);
                 saveToLocalStorage(this.wishes);
                 this.updateSummary();
-                console.log(`Елемент #${id} видалено з IndexedDB`);
             } catch (err) {
                 console.error('Помилка видалення з IndexedDB:', err);
             }
         },
 
-        // Розрахунок підсумкової суми (тільки не придбані товари)
         updateSummary() {
             const totalPriceEl = document.querySelector('#total-price');
             const totalCountEl = document.querySelector('#total-count');
@@ -228,25 +259,13 @@ const app = createApp({
             if (totalCountEl) totalCountEl.textContent = remaining.length;
         },
 
-        // Завантаження даних застосунку при старті
         async loadInitialData() {
             try {
-                // Крок 8: перевіряємо й проводимо міграцію
                 await runMigrationIfNeeded();
-
-                // Крок 9: рендер із результату getAllWishesFromDB()
                 this.wishes = await getAllWishesFromDB();
                 this.updateSummary();
             } catch (err) {
-                // Крок 11: обробка помилки доступу до бази
                 console.error('Збій доступу до IndexedDB:', err);
-                const statusMessage = document.querySelector('#status-message');
-                if (statusMessage) {
-                    statusMessage.textContent = 'Помилка доступу до локальної бази даних IndexedDB';
-                    statusMessage.className = 'status-message status-message--error';
-                    statusMessage.style.display = 'block';
-                }
-                // Резервний варіант (fallback): читаємо з localStorage
                 this.wishes = loadFromLocalStorage() || INITIAL_WISHES;
                 this.updateSummary();
             }
@@ -259,7 +278,31 @@ const app = createApp({
 
 const vm = app.mount('#wishlist-cards');
 
-// Додавання нового бажання через форму (операція put у сховище)
+const savingsInput = document.querySelector('#savings-input');
+const quickSaveButtons = document.querySelectorAll('.btn-quick-save');
+
+if (savingsInput) {
+    savingsInput.value = vm.savings > 0 ? vm.savings : '';
+
+    savingsInput.addEventListener('input', event => {
+        vm.setSavings(event.target.value);
+    });
+}
+
+quickSaveButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (btn.dataset.reset) {
+            vm.setSavings(0);
+            if (savingsInput) savingsInput.value = '';
+        } else {
+            const addAmount = Number(btn.dataset.add) || 0;
+            const updated = vm.savings + addAmount;
+            vm.setSavings(updated);
+            if (savingsInput) savingsInput.value = updated;
+        }
+    });
+});
+
 const wishForm = document.querySelector('#wish-form');
 if (wishForm) {
     wishForm.addEventListener('submit', async event => {
