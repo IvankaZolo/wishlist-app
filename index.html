@@ -120,7 +120,7 @@
 
                     <p class="wish-detail__url">
                         <strong>Посилання на товар:</strong>
-                        <a v-if="selectedWish.url" :href="selectedWish.url" target="_blank" rel="noopener">
+                        <a v-if="safeSelectedWishUrl" :href="safeSelectedWishUrl" target="_blank" rel="noopener">
                             Перейти в магазин ↗
                         </a>
                         <span v-else>не вказано</span>

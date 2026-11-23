@@ -1,8 +1,25 @@
-console.log('script.js підключено: робота з локальним сервером Node.js');
+console.log('script.js підключено: увімкнено захист від XSS та валідацію URL');
 
 const STORAGE_KEY = 'wishlist_items';
 const SAVINGS_KEY = 'wishlist_savings';
-const API_URL = '/api/wishes'; // Локальний ендпоінт на Node.js
+const API_URL = '/api/wishes';
+
+// Перевірка схеми URL для захисту від XSS через javascript: у атрибуті href
+function sanitizeUrl(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== 'string') return '';
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return '';
+
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return parsed.href;
+        }
+        return '';
+    } catch (e) {
+        return '';
+    }
+}
 
 function saveToLocalStorage(items) {
     try {
@@ -205,6 +222,10 @@ const app = createApp({
         selectedWish() {
             const targetId = Number(this.routeParams.id);
             return this.wishesWithProgress.find(item => item.id === targetId) || null;
+        },
+        // Безпечне посилання для атрибута href на сторінці деталей
+        safeSelectedWishUrl() {
+            return this.selectedWish ? sanitizeUrl(this.selectedWish.url) : '';
         }
     },
     methods: {
@@ -214,7 +235,6 @@ const app = createApp({
             localStorage.setItem(SAVINGS_KEY, String(cleanValue));
         },
 
-        // Завантаження початкових даних із локального сервера Node.js (/api/wishes)
         async syncWithServer(isSilent = false) {
             try {
                 if (!isSilent) {
@@ -228,11 +248,13 @@ const app = createApp({
 
                 const serverWishes = await response.json();
 
-                // Зберігаємо отримані з сервера записи в IndexedDB
                 for (const item of serverWishes) {
                     const exists = this.wishes.some(w => w.id === item.id);
                     if (!exists) {
-                        await putWishToDB(item);
+                        await putWishToDB({
+                            ...item,
+                            url: sanitizeUrl(item.url)
+                        });
                     }
                 }
 
@@ -264,7 +286,7 @@ const app = createApp({
                 title: title,
                 price: price,
                 priority: this.newWishForm.priority,
-                url: this.newWishForm.url || '',
+                url: sanitizeUrl(this.newWishForm.url),
                 purchased: false
             };
 
