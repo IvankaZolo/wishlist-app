@@ -54,8 +54,15 @@
             <section id="wishlist">
                 <div class="wishlist-header">
                     <h2>Мої бажання</h2>
+                    <button type="button" id="btn-refresh" class="btn-refresh" @click="syncWithServer(false)">
+                        Оновити з сервера
+                    </button>
                 </div>
-                <div id="status-message" class="status-message" style="display: none;"></div>
+
+                <div v-if="statusMessage" id="status-message" class="status-message" style="display: block;">
+                    {{ statusMessage }}
+                </div>
+
                 <div class="cards" id="wishlist-cards">
                     <wish-item 
                         v-for="item in wishesWithProgress" 

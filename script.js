@@ -1,20 +1,8 @@
-console.log('script.js підключено: ініціалізація SPA-роутера та сховищ');
+console.log('script.js підключено: робота з локальним сервером Node.js');
 
-// ==========================================
-// 1. КОНСТАНТИ ТА РОБОТА З LOCALSTORAGE
-// ==========================================
 const STORAGE_KEY = 'wishlist_items';
-const MIGRATION_KEY = 'wishlist_migrated';
 const SAVINGS_KEY = 'wishlist_savings';
-
-const INITIAL_WISHES = [
-    { id: 1, title: 'Набір Lego Harry Potter', price: 3500, priority: 'високий', url: 'https://www.lego.com', purchased: false },
-    { id: 2, title: 'Книга з алгоритмів', price: 600, priority: 'середній', url: '', purchased: false },
-    { id: 3, title: 'Бездротові навушники', price: 2400, priority: 'високий', url: '', purchased: false },
-    { id: 4, title: 'Чохол для планшета', price: 450, priority: 'низький', url: '', purchased: false },
-    { id: 5, title: 'Теплий плед', price: 950, priority: 'середній', url: '', purchased: false },
-    { id: 6, title: 'Механічна клавіатура', price: 2800, priority: 'високий', url: '', purchased: false }
-];
+const API_URL = '/api/wishes'; // Локальний ендпоінт на Node.js
 
 function saveToLocalStorage(items) {
     try {
@@ -34,9 +22,6 @@ function loadFromLocalStorage() {
     }
 }
 
-// ==========================================
-// 2. АСИНХРОННА БАЗА ДАНИХ INDEXEDDB
-// ==========================================
 const DB_NAME = 'WishlistDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'wishes';
@@ -95,27 +80,6 @@ async function deleteWishFromDB(id) {
     });
 }
 
-async function runMigrationIfNeeded() {
-    let localData = loadFromLocalStorage();
-    if (!localData || localData.length === 0) {
-        saveToLocalStorage(INITIAL_WISHES);
-        localData = INITIAL_WISHES;
-    }
-
-    const isMigrated = localStorage.getItem(MIGRATION_KEY);
-    const dbItems = await getAllWishesFromDB();
-
-    if (!isMigrated || dbItems.length === 0) {
-        for (const item of localData) {
-            await putWishToDB(item);
-        }
-        localStorage.setItem(MIGRATION_KEY, 'true');
-    }
-}
-
-// ==========================================
-// 3. VUE-КОМПОНЕНТ КАРТКИ БАЖАННЯ
-// ==========================================
 const WishItem = {
     props: {
         id: { type: Number, required: true },
@@ -137,7 +101,6 @@ const WishItem = {
             :data-priority="priority"
         >
             <div class="wish-item__content">
-                <!-- Клік по назві веде на сторінку деталей #/wishes/:id -->
                 <h3>
                     <a :href="'#/wishes/' + id" data-link class="wish-item__title-link">
                         {{ name }}
@@ -202,6 +165,7 @@ const app = createApp({
             savings: Number(localStorage.getItem(SAVINGS_KEY)) || 0,
             currentView: 'home',
             routeParams: {},
+            statusMessage: '',
             newWishForm: {
                 title: '',
                 price: '',
@@ -235,11 +199,9 @@ const app = createApp({
                 };
             });
         },
-        // Дані для маршруту #/purchased
         purchasedWishes() {
             return this.wishesWithProgress.filter(item => item.purchased);
         },
-        // Пошук конкретного бажання для маршруту #/wishes/:id
         selectedWish() {
             const targetId = Number(this.routeParams.id);
             return this.wishesWithProgress.find(item => item.id === targetId) || null;
@@ -250,6 +212,46 @@ const app = createApp({
             const cleanValue = Math.max(0, Number(newAmount) || 0);
             this.savings = cleanValue;
             localStorage.setItem(SAVINGS_KEY, String(cleanValue));
+        },
+
+        // Завантаження початкових даних із локального сервера Node.js (/api/wishes)
+        async syncWithServer(isSilent = false) {
+            try {
+                if (!isSilent) {
+                    this.statusMessage = 'Завантаження даних із локального сервера...';
+                }
+
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`Помилка HTTP: ${response.status}`);
+                }
+
+                const serverWishes = await response.json();
+
+                // Зберігаємо отримані з сервера записи в IndexedDB
+                for (const item of serverWishes) {
+                    const exists = this.wishes.some(w => w.id === item.id);
+                    if (!exists) {
+                        await putWishToDB(item);
+                    }
+                }
+
+                this.wishes = await getAllWishesFromDB();
+                saveToLocalStorage(this.wishes);
+                this.updateSummary();
+
+                if (!isSilent) {
+                    this.statusMessage = `Синхронізовано з сервером (${API_URL}): отримано ${serverWishes.length} записів.`;
+                    setTimeout(() => { this.statusMessage = ''; }, 4000);
+                }
+            } catch (err) {
+                console.error('Помилка запиту до локального сервера:', err);
+                this.statusMessage = 'Не вдалося звернутися до сервера. Використано локальні дані.';
+                if (this.wishes.length === 0) {
+                    this.wishes = loadFromLocalStorage() || [];
+                }
+                this.updateSummary();
+            }
         },
 
         async addNewWish() {
@@ -315,13 +317,16 @@ const app = createApp({
 
         async loadInitialData() {
             try {
-                await runMigrationIfNeeded();
-                this.wishes = await getAllWishesFromDB();
-                this.updateSummary();
+                const dbItems = await getAllWishesFromDB();
+                if (dbItems.length > 0) {
+                    this.wishes = dbItems;
+                    this.updateSummary();
+                } else {
+                    await this.syncWithServer(true);
+                }
             } catch (err) {
                 console.error('Збій доступу до IndexedDB:', err);
-                this.wishes = loadFromLocalStorage() || INITIAL_WISHES;
-                this.updateSummary();
+                await this.syncWithServer(true);
             }
         }
     },
@@ -330,14 +335,8 @@ const app = createApp({
     }
 });
 
-// Монтуємо Vue в єдиний контейнер сторінки <main id="app"> (Крок 2)
 const vm = app.mount('#app');
 
-// ==========================================
-// 4. КЛІЄНТСЬКИЙ HASH-РОУТЕР (Кроки 3-9)
-// ==========================================
-
-// Крок 5: View-функції для кожного маршруту варіанта 7
 function renderHome() {
     vm.currentView = 'home';
     vm.routeParams = {};
@@ -358,14 +357,12 @@ function renderNotFound() {
     vm.routeParams = {};
 }
 
-// Крок 3: Таблиця маршрутів для варіанта 7 (/, /wishes/:id, /purchased)
 const routes = [
     { path: '/', view: renderHome },
     { path: '/wishes/:id', view: renderWishDetail },
     { path: '/purchased', view: renderPurchased }
 ];
 
-// Крок 4: Зіставлення шляху з патерном та витягування параметра :id
 function matchRoute(path) {
     const pathParts = path.split('/').filter(Boolean);
 
@@ -387,10 +384,9 @@ function matchRoute(path) {
         }
     }
 
-    return null; // маршрут не знайдено — повертаємо null для сторінки 404
+    return null;
 }
 
-// Крок 7: Обробка зміни хеша та підсвічування активного пункту меню
 function handleRouteChange() {
     const path = location.hash.slice(1) || '/';
     const matched = matchRoute(path);
@@ -406,7 +402,6 @@ function handleRouteChange() {
     });
 }
 
-// Крок 6: Перехоплення кліків за внутрішніми посиланнями [data-link]
 document.addEventListener('click', event => {
     const link = event.target.closest('a[data-link]');
     if (!link) return;
@@ -417,11 +412,8 @@ document.addEventListener('click', event => {
 });
 
 window.addEventListener('hashchange', handleRouteChange);
-handleRouteChange(); // ініціалізація маршруту при першому відкритті
+handleRouteChange();
 
-// ==========================================
-// 5. КЕРУВАННЯ НАКОПИЧЕННЯМИ В САЙДБАРІ
-// ==========================================
 const savingsInput = document.querySelector('#savings-input');
 const quickSaveButtons = document.querySelectorAll('.btn-quick-save');
 
